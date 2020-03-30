@@ -27,21 +27,6 @@ class Segment(ABC):
         return(avg)
 
     def postprocess(self, binimage):
-        #Luis' original post-processing code
-        #clear B
-        #clear binaryImage
-        #sOnes=length(find(mark6==1));
-        #sZeros=length(find(mark6==0));
-        #if sOnes>sZeros
-        #    B=1+(mark6*-1);
-        #    warNeg='col conv implemented)';
-        #else
-        #    B=mark6;
-        #    warNeg='col conv was not requiered)';
-        #end
-        #se = strel('disk',3);
-        #binaryImage = imclose(B,se);
-        #binaryImage = imclearborder(bwareaopen(binaryImage,minApx));
         numOnes = np.where(binimage).size
         numZeros = binimage.size - numOnes
         if( numOnes > numZeros ):
@@ -58,7 +43,7 @@ class Segment(ABC):
 
     def segment(self, binimage):
         '''
-        Returns a set of opencv contours using a binary contour image passed as input.
+        Returns a set of region properties on labeled image using skimage
         '''
         label_image = label(binimage)
         regions = filter(lambda prop: (prop.area >= minArea) and (prop.area <= maxArea), regionprops(label_image))
