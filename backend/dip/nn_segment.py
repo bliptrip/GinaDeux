@@ -10,13 +10,18 @@ from segment import Segment
 
 
 class NNSegment(Segment):
-    def __init__(self, modelConfig=None):
+    def __init__(self, modelPath=None):
         '''
         Neural network segmentation class.  If a pretrained model is passed to a constructor, then it is load
         '''
         super().__init__()
-        if modelConfig:
-            self.model = models.model_from_json(modelConfig)
+        if modelPath:
+            json_file = open('{}.json'.format(modelPath), 'r')
+            loaded_model_json = json_file.read()
+            json_file.close()
+            self.model = model_from_json(loaded_model_json)
+            # load weights into new model
+            self.model.load_weights("{}.h5".format(modelPath))
         else:
             self.model = None
         return
@@ -76,3 +81,11 @@ class NNSegment(Segment):
         predictions.reshape(row,col)
         predictions = super().postprocess(predictions)
         return(predictions)
+
+    def export(self, path):
+        model_json = self.model.to_json()
+        with open("{}.json".format(path), "w") as json_file:
+                json_file.write(model_json)
+                json_file.close()
+                # serialize weights to HDF5
+                self.model.save_weights("{}.h5".format(path))
