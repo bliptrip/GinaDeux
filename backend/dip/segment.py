@@ -5,20 +5,19 @@
 #
 from abc import ABC, abstractmethod
 import cv2
-import imutils
+#import imutils
 import numpy as np
 from skimage.filters.rank import mean
 from skimage.segmentation import clear_border
 from skimage.measure import label, regionprops
 from skimage.morphology import closing, disk, flood_fill
 
-class Segment(ABC):
-    def __init__(self, resize=0.5, minArea=1500, maxArea=3000, minIntertia=0.2):
+class Segment():
+    def __init__(self, resize=0.5, minArea=1500, maxArea=3000):
         super().__init__()
         self.resize = resize
         self.minArea = minArea
         self.maxArea = maxArea
-        self.minIntertia = minInertia
         return
 
     def preprocess(self, image):
@@ -30,14 +29,14 @@ class Segment(ABC):
         numOnes = np.where(binimage).size
         numZeros = binimage.size - numOnes
         if( numOnes > numZeros ):
-            binimage = !binimage #Invert -- Why, I'm not sure, but this was in original GiNA code
+            binimage = not binimage #Invert -- Why, I'm not sure, but this was in original GiNA code
         binimage = closing(binimage, disk(3,3)) #Luis did this image postprocessing to remove noise
         #bwareaopen doesn't have a direct implementation.  Could just fill in 'holes', and then remove anything that
         #is below a given size in the segmention stage
         holes = binimage.copy()
         flood_fill(holes, (0,0), True, inplace=True)
         # invert holes mask, img fill in holes
-        holes = !holes
+        holes = not holes
         binimage = binimage | holes
         return(clear_border(binimage))
 
