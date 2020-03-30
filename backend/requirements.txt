@@ -1,7 +1,12 @@
+argparse
 flask
+h5py
+imutils
 keras
 numpy
 opencv-python
 pymongo
 pymongoext
 scikit-image
+tensorflow
+tensorflow-cpu
