@@ -28,9 +28,10 @@ expected amount of network traffic.
 ### Backend (python)
 
 * [Flask Microframework](https://flask.palletsprojects.com/en/1.1.x/)
+* [Keras Python Deep Learning Library](https://keras.io/)
 * [MongoDB Python Driver](https://www.mongodb.com/blog/post/getting-started-with-python-and-mongodb)
 * [OpenCV](https://opencv.org/links)
-* [Keras Python Deep Learning Library](https://keras.io/)
+* [Scikit-Image](https://scikit-image.org/)
 
 ## Installation
 
