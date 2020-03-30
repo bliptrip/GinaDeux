@@ -4,7 +4,7 @@
 # a Linux OS with apt-type package installation.
 sudo apt --yes update
 sudo apt --yes upgrade
-sudo apt --yes install libopencv-dev nodejs npm python3 python3-pip
+sudo apt --yes install libopencv-dev mongodb nodejs npm python3 python3-pip
 
 if [[ -n $SETUP_VIRGIN ]]; then #This is invoked when creating project from scratch -- if checking out from github, it's unecessary.
     sudo npm install npx -g

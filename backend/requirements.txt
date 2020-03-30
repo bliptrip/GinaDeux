@@ -2,3 +2,6 @@ flask
 keras
 numpy
 opencv-python
+pymongo
+pymongoext
+scikit-image
