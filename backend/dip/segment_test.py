@@ -23,7 +23,7 @@ def parse_args():
     parser.add_argument('--algorithm', action='store', type=str, choices=['binary','neural'], help="Type of segmentation algorithm to use (binary thresholding, neural network, etc.")
     group = parser.add_argument_group('binary', 'Binary Threshold Parameters')
     group.add_argument('--threshold', type=int, default=100, help="Threshold level to segment foreground from background.")
-    group.add_argument('--channel', type=int, default=3, help="Image channel to do the thresholding operation on.")
+    group.add_argument('--channel', type=int, default=2, help="Image channel to do the thresholding operation on.")
     group = parser.add_argument_group('neural', 'Use a foreground and background image to train a simple neural network for doing image segmentation.')
     group.add_argument('--neural_model', dest='model', type=str, default="model", help='If a model has been previously generated, a file path (without extension) to its JSON-representation + h5 weights.')
     group.add_argument('--foreground_image', dest='foreground', help='Path to foreground image.')
@@ -44,13 +44,14 @@ if __name__ == '__main__':
     elif( parsed.algorithm == 'neural' ):
         if( parsed.foreground and parsed.background ): #Train
             segmenter = NNSegment( resize=resizeFactor, minArea=mina, maxArea=maxa )
-            segmenter.train(parsed.foreground, parsed.background)
-            segmenter.export(modelPath) #Write the trained model and its weights back to files
+            foreground = cv2.imread(parsed.foreground)
+            background = cv2.imread(parsed.background)
+            segmenter.train(foreground, background)
+            segmenter.export(parsed.model) #Write the trained model and its weights back to files
         else: #Load previously trained model
             segmenter = NNSegment( modelPath=parsed.model, resize=resizeFactor, minArea=mina, maxArea=maxa )
     binimage = segmenter.predict(input_image)
-    greyimage = binimage.astype(np.uint8)
-    greyimage[greyimage != 0] = 255
+    greyimage = binimage.astype('uint8')*255
     cv2.imwrite(parsed.output, greyimage)
-    regionprops = segmenter.segment(binimage)
-    print(regionrpops)
+    regionprops = [r for r in segmenter.segment(binimage)]
+    print(regionprops)
