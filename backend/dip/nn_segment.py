@@ -52,17 +52,7 @@ class NNSegment(Segment):
         self.model.compile(optimizer='rmsprop',
                            loss='binary_crossentropy',
                            metrics=['accuracy'])
-        #combined_samples_train = combined_samples[0:combined_samples.shape[0]]
-        #combined_sample_categories_train  = combined_samples[0:combined_sample_categories.shape[0]]
-        #combined_samples_test = combined_samples[combined_samples.shape[0]:]
-        #combined_sample_categories_test= combined_samples[combined_sample_categories.shape[0]:]
         earlyStoppingC  = EarlyStopping(patience=3, verbose=1, restore_best_weights=True)
-        #Recast background image into a 3*num_pixels (channels) vector with label value = 0 for background
-        #Randomly mix and concatentate the foreground/background values and their corresponding labels
-        #model.add(layers.Dense(hidden_unit_size, activation='relu', input_shape=(3,)))
-        #model.add(layers.Dense(16, activation='relu'))
-        #model.add(layers.Dense(1, activation='sigmoid'))
-        #model.compile()
         history = self.model.fit(   x=combined_samples, 
                                     y=combined_sample_categories[:,np.newaxis], 
                                     epochs=20, 
