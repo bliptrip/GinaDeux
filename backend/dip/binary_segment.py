@@ -7,8 +7,8 @@ import cv2
 from segment import Segment
 
 class BinaryThresholdSegment(Segment):
-    def __init__(self, channel=3, threshold=100, **kwargs):
-        super().__init__(kwargs)
+    def __init__(self, channel=2, threshold=100, **kwargs):
+        super().__init__(**kwargs)
         self.channel    = channel #Channel to threshold on
         self.threshold  = threshold #Threshold value - values less than this are considered 'foreground' pixels
         return
