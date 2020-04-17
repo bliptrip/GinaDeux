@@ -5,8 +5,11 @@ imutils
 keras
 numpy
 opencv-python
+pandas
 pymongo
 pymongoext
 scikit-image
+scikit-learn
+scipy
 tensorflow
-tensorflow-cpu
+#tensorflow-cpu
