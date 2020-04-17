@@ -52,7 +52,7 @@ class NNSegment(Segment):
         self.model.compile(optimizer='rmsprop',
                            loss='binary_crossentropy',
                            metrics=['accuracy'])
-        earlyStoppingC  = EarlyStopping(patience=3, verbose=1, restore_best_weights=True)
+        earlyStoppingC  = EarlyStopping(patience=1, verbose=1, restore_best_weights=True)
         history = self.model.fit(   x=combined_samples, 
                                     y=combined_sample_categories[:,np.newaxis], 
                                     epochs=20, 
