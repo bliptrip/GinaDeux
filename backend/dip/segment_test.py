@@ -17,6 +17,7 @@ def parse_args():
     parser = argparse.ArgumentParser(prog=sys.argv[0], description="A command-line utility for executing unit testing on GiNA image segmentation implementations.")
     parser.add_argument('-i', '--input', '--input_image', dest='input', required=True, help="Path to input image.")
     parser.add_argument('-o', '--output', '--output_image', dest='output', required=True, help="Path to output (segmented) image.")
+    parser.add_argument('-t', '--table', '--output_table', dest='table', help="Output image-derived metrics/traits to CSV file with --table <filename>.")
     parser.add_argument('--resize', type=float, default='0.5', help="Resize factor on original image before doing image processing.")
     parser.add_argument('--min_area', '--mina', '--minArea', dest='mina', type=int, default='1500', help="Remove foreground blobs (fruit) less than this size.")
     parser.add_argument('--max_area', '--maxa', '--maxArea', dest='maxa', type=int, default='1500', help="Remove foreground blobs (fruit) greather than this size.")
@@ -40,7 +41,7 @@ if __name__ == '__main__':
     if( parsed.algorithm == 'binary' ):
         threshold = parsed.threshold
         channel = parsed.channel
-        segmenter = BinaryThresholdSegment( channel=channel, threshold=threshold, resize=resizeFactor, minArea=mina, maxArea=maxa )
+        segmenter = BinaryThresholdSegment( channel=channel, threshold=threshold, resize=resizeFactor, minArea=mina, maxArea=maxa, grid=True )
     elif( parsed.algorithm == 'neural' ):
         if( parsed.foreground and parsed.background ): #Train
             segmenter = NNSegment( resize=resizeFactor, minArea=mina, maxArea=maxa )
@@ -49,9 +50,10 @@ if __name__ == '__main__':
             segmenter.train(foreground, background)
             segmenter.export(parsed.model) #Write the trained model and its weights back to files
         else: #Load previously trained model
-            segmenter = NNSegment( modelPath=parsed.model, resize=resizeFactor, minArea=mina, maxArea=maxa )
+            segmenter = NNSegment( modelPath=parsed.model, resize=resizeFactor, minArea=mina, maxArea=maxa, grid=True )
     binimage = segmenter.predict(input_image)
     greyimage = binimage.astype('uint8')*255
     cv2.imwrite(parsed.output, greyimage)
-    regionprops = [r for r in segmenter.segment(binimage)]
-    print(regionprops)
+    data, findex, rindex = segmenter.segment(input_image, binimage)
+    if( parsed.table ):
+        data.iloc[findex].to_csv(parsed.table, index=False)
