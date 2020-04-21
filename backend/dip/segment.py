@@ -161,10 +161,15 @@ class Segment():
         datadf = pd.DataFrame(np.zeros((regions.shape[0],len(columns)),dtype='float64'), columns=columns) #Pre-allocate
         #If user specifies that berries are in a grid pattern, then use radon transform to determine 'peaks' in the y-direction
         if self.grid:
+            binxdim = binimage.shape[0]
+            binydim = binimage.shape[1]
+            maxdim = max(binxdim, binydim)
+            newbinimage = np.zeros((maxdim, maxdim), dtype='uint8') #Necessary to convert to square, as radon transform apparently shrinks to smallest dimension
+            newbinimage[:binxdim,:binydim] = binimage * 255 #Copy the binimage into the square version of it
             regions['grid_bins']    = pd.Series(np.zeros(len(regions.index)), index=regions.index) #Create a grid_bins column for storing clustered grid columns
-            grid_peaks              = np.squeeze(radon(binimage, theta=[90.0])) #Project only at 90 degrees
-            grid_peaks              = gaussian_filter(grid_peaks, sigma=1.0) #Gaussian blur the radon transform output in order to avoid spurious peaks
-            grid_peak_extrema       = argrelextrema(grid_peaks, np.greater)[0]
+            grid_peaks              = np.squeeze(radon(newbinimage, theta=[0.0], circle=True, preserve_range=True)) #Project only at 0 degrees (down columns)
+            grid_peaks_blur         = gaussian_filter(grid_peaks, sigma=3.0) #Gaussian blur the radon transform output in order to avoid spurious peaks
+            grid_peak_extrema       = argrelextrema(grid_peaks_blur, np.greater)[0]
             regions_centroid_col    = np.asarray(regions.centroid_col).reshape(-1,1) #Needed to get AgglomerativeClustering working
             grid_col_clustering     = AgglomerativeClustering(n_clusters=len(grid_peak_extrema)).fit(regions_centroid_col) #Sort blob centroids based on column offset
             #Reorder the labels_ from 0 to len(np.unique(labels_), as we want to keep sort
@@ -198,11 +203,11 @@ class Segment():
         #Calculate Color Stats for Each Blob
         for i,r in regions.iterrows():
             blobPixels                  = image[np.where(label_image == r.label)]
-            R_med,G_med,B_med           = np.median(blobPixels, axis=0)
+            B_med,G_med,R_med           = np.median(blobPixels, axis=0)
             datadf.loc[i, 'R_med']      = R_med
             datadf.loc[i, 'G_med']      = G_med
             datadf.loc[i, 'B_med']      = B_med
-            R_var,G_var,B_var           = np.var(blobPixels, axis=0)
+            B_var,G_var,R_var           = np.var(blobPixels, axis=0)
             datadf.loc[i, 'R_var']      = R_var
             datadf.loc[i, 'G_var']      = G_var
             datadf.loc[i, 'B_var']      = B_var
