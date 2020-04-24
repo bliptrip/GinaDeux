@@ -23,8 +23,9 @@ def parse_args():
 if __name__ == '__main__':
     parsed = parse_args();
     ginaUnTable     = pd.read_csv(parsed.input1)
+    ginaUnTable     = ginaUnTable.set_index(['picture', 'numbering'])
     ginaDeuxTable   = pd.read_csv(parsed.input2)
+    ginaDeuxTable   = ginaDeuxTable.set_index(['picture', 'numbering'])
     commonFields    = np.intersect1d(ginaUnTable.columns,ginaDeuxTable.columns)
     diffTable       = ginaUnTable[commonFields] - ginaDeuxTable[commonFields]
     diffTable.to_csv(parsed.output)
-
