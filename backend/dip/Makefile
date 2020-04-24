@@ -4,12 +4,20 @@ nn_gen:
 
 #Generate an analysis on a single image without generating a neural model (using previously generated, trained neural net model)
 ginadeux:
-		./segment_test.py --algorithm neural --neural_model mp_test --min_area 5000 --max_area 30000 -i /mnt/external/Cranberries/MatthewPhillips/GiNATestImages/GiNA_undistorted/BG_1-25.JPG -o BGP_1-25.bin.jpg -t BGP_1-25.csv
+		./segment_test.py --algorithm neural --neural_model mp_test --min_area 2500 --max_area 30000 --includes include_images.txt -t GiNADeux_output.csv -o GiNADeuxOutput
 
 ginadeux_d:
-		python3 -m pdb ./segment_test.py --algorithm neural --neural_model mp_test --min_area 5000 --max_area 30000 -i /mnt/external/Cranberries/MatthewPhillips/GiNATestImages/GiNA_undistorted/BG_1-25.JPG -o BGP_1-25.bin.jpg -t BGP_1-25.csv
+		python3 -m pdb ./segment_test.py --algorithm neural --neural_model mp_test --min_area 2500 --max_area 30000 --includes include_images.txt -t GiNADeux_output.csv -o GiNADeuxOutput
 
 #Compare Matlab GiNA (original) output against GinaDeux
 compare:
-		./segment_diff.py --i1 /mnt/external/Cranberries/MatthewPhillips/GiNATestImages/GiNA_undistorted/GiNA_output.BG1-25.csv --i2 BGP_1-25.csv -o comparison.csv
+		./segment_diff.py --i1 /mnt/external/Cranberries/MatthewPhillips/GiNATestImages/GiNA_undistorted/GiNA_output.csv --i2 ./GiNADeuxOutput/GiNADeux_output.csv -o comparison.csv
 
+compare_d:
+		python3 -m pdb ./segment_diff.py --i1 /mnt/external/Cranberries/MatthewPhillips/GiNATestImages/GiNA_undistorted/GiNA_output.csv --i2 ./GiNADeuxOutput/GiNADeux_output.csv -o comparison.csv
+
+bindiff:
+		./binary_diff.py --i1 /mnt/external/Cranberries/MatthewPhillips/GiNATestImages/GiNA_undistorted/BG_1-25.binary.JPG --i2 BGP_1-25.bin.jpg -o binary.diff.png
+
+bindiff_d:
+		python3 -m pdb ./binary_diff.py --i1 /mnt/external/Cranberries/MatthewPhillips/GiNATestImages/GiNA_undistorted/BG_1-25.binary.JPG --i2 BGP_1-25.bin.jpg -o binary.diff.png
