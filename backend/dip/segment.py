@@ -239,17 +239,17 @@ class Segment():
             not_fruit_labels[r.coords[:,0], r.coords[:,1]] = False
         fruit_label_image = label_image.copy()
         fruit_label_image[not_fruit_labels] = 0 #Mark as 0 to clear out other label entries
-        image_boundaries = mark_boundaries(image, fruit_label_image, color=(255,0,0))
+        image_boundaries = (mark_boundaries(image, fruit_label_image, color=(0,0,1))*255).astype('uint8')
         fruit_boundaries = find_boundaries(fruit_label_image)
 
         reference_index = np.setdiff1d(np.array(range(0, num_blobs)), fruit_index)
         not_reference_labels = np.ones(label_image.shape, dtype='bool')
-        for i in fruit_index:
+        for i in reference_index:
             r = regions_raw[i]
             not_reference_labels[r.coords[:,0], r.coords[:,1]] = False
         reference_label_image = label_image.copy()
         reference_label_image[not_reference_labels] = 0 #Mark as 0 to clear out other label entries
-        image_boundaries = mark_boundaries(image_boundaries, fruit_label_image, color=(0,0,255))
+        image_boundaries = (mark_boundaries(image_boundaries, reference_label_image, color=(1,0,0))*255).astype('uint8')
         reference_boundaries = find_boundaries(reference_label_image)
 
         #Normalize the features relative to the size standard, and to the 'real' size, if needed
