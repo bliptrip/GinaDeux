@@ -14,8 +14,8 @@ from scipy.ndimage.filters import gaussian_filter
 from scipy.signal import argrelextrema
 from skimage.color import rgb2gray
 from skimage.filters.rank import mean
-from skimage.segmentation import clear_border
-from skimage.measure import label, regionprops_table
+from skimage.segmentation import clear_border, find_boundaries, mark_boundaries
+from skimage.measure import label, regionprops_table, regionprops
 from skimage.morphology import closing, disk, flood_fill
 from skimage.transform import radon #Radon projection transform, for determining the number of columns, and thus the number of column bins
 from sklearn.cluster import AgglomerativeClustering
@@ -49,6 +49,8 @@ columns = [ 'LvsW',
             'skinSurface_r2',
             'blobVolume_r2',
             'accuracy',
+            'locationX',
+            'locationY',
             'R_med',
             'G_med',
             'B_med',
@@ -57,6 +59,8 @@ columns = [ 'LvsW',
             'B_var']
 
 dtypes  = pd.Series(['float64',
+                     'float64',
+                     'float64',
                      'float64',
                      'float64',
                      'float64',
@@ -131,8 +135,14 @@ class Segment():
         Returns a set of region properties on labeled image using skimage
         '''
         image = self.preprocess(image)
+        if( binimage.shape != image.shape[0:2] ): #Need to check the following, b/c if I input Matlab-derived binary files to compare to the resized image, Matlab scales slightly differently (rounds instead of floor) than OpenCV2
+            binimage = binimage.astype('uint8')*255
+            binimage = cv2.resize(binimage, dsize=(image.shape[1], image.shape[0]), interpolation=cv2.INTER_NEAREST) #Have to flip shape, as cv2 expects image convention (cols,rows), while numpy treats shape as (rows,cols)
+            binimage = binimage.astype('bool')
         label_image = label(binimage)
         #Extract regions/blobs
+        regions_raw = [r for r in filter(lambda r: (r.area >= self.minArea ) & (r.area <= self.maxArea), regionprops(label_image, cache=True))]
+        regions_raw.sort(key = lambda r: r.centroid[1])
         regions = pd.DataFrame(regionprops_table(label_image, properties=['major_axis_length',
                                                                 'minor_axis_length',
                                                                 'area',
@@ -158,7 +168,8 @@ class Segment():
         #Filter out regions based on area (in square pixels)
         regions = regions[(regions.area >= self.minArea) & (regions.area <= self.maxArea)]
         regions.sort_values(by='centroid_col', inplace=True) #Sort blobs left to right
-        datadf = pd.DataFrame(np.zeros((regions.shape[0],len(columns)),dtype='float64'), columns=columns) #Pre-allocate
+        regions.index = range(0, len(regions.index))
+
         #If user specifies that berries are in a grid pattern, then use radon transform to determine 'peaks' in the y-direction
         if self.grid:
             binxdim = binimage.shape[0]
@@ -184,7 +195,8 @@ class Segment():
             regions.grid_bins = new_labels
             regions.sort_values(by=['grid_bins','centroid_row'], inplace=True)
         regions.index = range(0,len(regions.index)) #Renumber the index from 0 to len(regions.index), since the dataframe will hold the original ordering b/f sorting
-        
+
+        datadf = pd.DataFrame(np.zeros((regions.shape[0],len(columns)),dtype='float64'), columns=columns) #Pre-allocate
         #Extract contours/boundaries of each blob
         datadf.LvsW               = regions.major_axis_length / regions.minor_axis_length
         datadf.blobLength         = regions.major_axis_length
@@ -193,6 +205,8 @@ class Segment():
         datadf.projectedPerimeter = regions.perimeter
         datadf.blobEccentricity   = regions.eccentricity
         datadf.blobSolidity       = regions.solidity
+        datadf.locationX          = regions.centroid_col
+        datadf.locationY          = regions.centroid_row
         A = 0.5 * regions.minor_axis_length #Assume that we are a prolate spheroid (elongated like an egg, not flattened, or oblate (like a rotating planet))
         B = A
         C = 0.5 * regions.major_axis_length 
@@ -201,8 +215,8 @@ class Segment():
         E                           = sqrt(1 - ((A**2)/(C**2)))
         datadf.skinSurface        = (2*pi*(A**2))*(1 + (C/(A*E))+asin(E)) #Again, this is a formula assuming a prolate spheroid, which better defines most cranberry shapes
         #Calculate Color Stats for Each Blob
-        for i,r in regions.iterrows():
-            blobPixels                  = image[np.where(label_image == r.label)]
+        for i in range(0,len(regions.index)):
+            blobPixels                  = image[regions_raw[i].coords[:,0],regions_raw[i].coords[:,1]]
             B_med,G_med,R_med           = np.median(blobPixels, axis=0)
             datadf.loc[i, 'R_med']      = R_med
             datadf.loc[i, 'G_med']      = G_med
@@ -212,13 +226,32 @@ class Segment():
             datadf.loc[i, 'G_var']      = G_var
             datadf.loc[i, 'B_var']      = B_var
             blobPixelsGray              = 1.0-rgb2gray(blobPixels)/255.0
-            datadf.loc[i, 'bwColor']    = np.sum(blobPixelsGray)/r.area
+            datadf.loc[i, 'bwColor']    = np.sum(blobPixelsGray)/(regions_raw[i].area)
             datadf.loc[i, 'vbwColor']   = np.var(blobPixelsGray)*100.0
-
+    
         num_blobs = len(regions.index)
         half_blobs = int(self.numRefs/2)
         fruit_index = np.array(range(half_blobs, num_blobs - half_blobs), dtype='int')
+        #Create a boundaries overlay for displaying fruit blobs for debugging
+        not_fruit_labels = np.ones(label_image.shape, dtype='bool')
+        for i in fruit_index:
+            r = regions_raw[i]
+            not_fruit_labels[r.coords[:,0], r.coords[:,1]] = False
+        fruit_label_image = label_image.copy()
+        fruit_label_image[not_fruit_labels] = 0 #Mark as 0 to clear out other label entries
+        image_boundaries = mark_boundaries(image, fruit_label_image, color=(255,0,0))
+        fruit_boundaries = find_boundaries(fruit_label_image)
+
         reference_index = np.setdiff1d(np.array(range(0, num_blobs)), fruit_index)
+        not_reference_labels = np.ones(label_image.shape, dtype='bool')
+        for i in fruit_index:
+            r = regions_raw[i]
+            not_reference_labels[r.coords[:,0], r.coords[:,1]] = False
+        reference_label_image = label_image.copy()
+        reference_label_image[not_reference_labels] = 0 #Mark as 0 to clear out other label entries
+        image_boundaries = mark_boundaries(image_boundaries, fruit_label_image, color=(0,0,255))
+        reference_boundaries = find_boundaries(reference_label_image)
+
         #Normalize the features relative to the size standard, and to the 'real' size, if needed
         datadf.loc[fruit_index, 'LvsW_r'] = datadf.loc[fruit_index, 'LvsW']/np.median(datadf.loc[reference_index, 'LvsW'])
         datadf.loc[fruit_index, 'blobLength_r'] = datadf.loc[fruit_index, 'blobLength']/np.median(datadf.loc[reference_index, 'blobLength'])
@@ -242,4 +275,4 @@ class Segment():
         datadf.loc[fruit_index, 'blobVolume_r2'] = datadf.loc[fruit_index, 'blobVolume'] * (ratioConv**3)
         datadf.loc[reference_index, 'accuracy'] = datadf.loc[reference_index, 'blobLength'] * (ratioConv)
 
-        return((datadf, fruit_index, reference_index))
+        return((datadf, fruit_index, reference_index, image_boundaries, fruit_boundaries, reference_boundaries))
