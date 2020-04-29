@@ -49,7 +49,7 @@ if __name__ == '__main__':
         segmenter = BinaryThresholdSegment( channel=channel, threshold=threshold, resize=resizeFactor, minArea=mina, maxArea=maxa, grid=True )
     elif( parsed.algorithm == 'neural' ):
         if( parsed.foreground and parsed.background ): #Train
-            segmenter = NNSegment( resize=resizeFactor, minArea=mina, maxArea=maxa )
+            segmenter = NNSegment( resize=resizeFactor, minArea=mina, maxArea=maxa, grid=True )
             foreground = cv2.imread(parsed.foreground)
             background = cv2.imread(parsed.background)
             segmenter.train(foreground, background)
@@ -75,13 +75,25 @@ if __name__ == '__main__':
         if not parsed.inputs_are_binary:
             input_image = cv2.imread(str(image_path))
             binimage = segmenter.predict(input_image)
-            greyimage = binimage.astype('uint8')*255
-            cv2.imwrite(str(output_path / (image_path.stem + '.binary.' + image_path.suffix)), greyimage) #Output the segmented binary image
+            #NOTE: I originally output the binary image in greyscale JPEG-format, but when I reopened the image as a binary file subsequently, the JPEG algorithm + greyscale resulted in a different binary file being read in
+            #Thus: Writing as lossless-compressed binary PNG files is the correct route
+            cv2.imwrite(str(output_path / (image_path.stem + '.binary.png')), binimage.astype('uint8'), [cv2.IMWRITE_PNG_COMPRESSION, 5, cv2.IMWRITE_PNG_BILEVEL, 1, cv2.IMWRITE_PNG_STRATEGY, cv2.IMWRITE_PNG_STRATEGY_RLE]) #Output the segmented binary image, uncompressed bilevel PNG
         else:
-            binimage = cv2.imread(str(image_path), cv2.IMREAD_GRAYSCALE).astype('bool')
-        data, findex, rindex = segmenter.segment(input_image, binimage)
-        data['picture'] = pd.Series([image_path.name]*len(data), index=data.index)
-        data['numbering'] = pd.Series([-1]*len(data.index), index=data.index)
+            image_path_parent   = image_path.parent
+            image_path_suffix   = image_path.suffix
+            image_path_stem     = PurePath(image_path.stem).stem
+            image_path_orig     = PurePath(image_path_parent) / (image_path_stem + '.JPG')
+            input_image = cv2.imread(str(image_path_orig))
+            binimage = cv2.imread(str(image_path), cv2.IMREAD_UNCHANGED).astype('bool')
+        data, findex, rindex, contour_image, fruit_boundaries, reference_boundaries = segmenter.segment(input_image, binimage)
+        cv2.imwrite(str(output_path / (image_path.stem + '.blobs' + image_path.suffix)), contour_image) #Output the segmented binary image
+        if not parsed.inputs_are_binary:
+            data['picture'] = pd.Series([image_path.name]*len(data), index=data.index)
+        else: #Remove the 'binary' extension -- NOTE: This assumes the segmented binary file versions are labeled with '.binary.JPG' in suffix, or equivalent.
+            image_path_suffix   = image_path.suffix
+            image_path_stem     = PurePath(image_path.stem).stem
+            data['picture']     = pd.Series([image_path_stem+image_path_suffix]*len(data), index=data.index)
+        data['numbering']       = pd.Series([-1]*len(data.index), index=data.index)
         data.loc[findex, 'numbering'] = np.array(range(1,len(findex)+1),dtype='int')
         data_collated = data_collated.append(data.iloc[findex]) #Only append the detected fruits to the collated table.
 
