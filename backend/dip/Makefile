@@ -54,8 +54,17 @@ bindiff:
 analyze:
 	R CMD BATCH '--args comparison_file="comparison.csv" output_file="comparison.pvalues.csv"' analyze_comparisons.R
 
+analyze_pair:
+	R CMD BATCH '--args ginaUn_output="/mnt/external/Cranberries/MatthewPhillips/GiNATestImages/GiNA_undistorted/GiNA_output.csv" ginaDeux_output="GiNADeuxOutput/GiNADeux_output.csv" output_file="comparison.paired.pvalues.csv"' analyze_paired.R
+
 analyze_bin:
 	R CMD BATCH '--args comparison_file="comparison.binary.csv" output_file="comparison.binary.pvalues.csv"' analyze_comparisons.R
 
+analyze_bin_pair:
+	R CMD BATCH '--args ginaUn_output="/mnt/external/Cranberries/MatthewPhillips/GiNATestImages/GiNA_undistorted/GiNA_output.csv" ginaDeux_output="GiNADeuxOutput/GiNADeux_output.binary.csv" output_file="comparison.binary.paired.pvalues.csv"' analyze_paired.R
+
 analyze_binorig:
 	R CMD BATCH '--args comparison_file="comparison.orig.binary.csv" output_file="comparison.orig.binary.pvalues.csv"' analyze_comparisons.R
+
+analyze_binorig_pair:
+	R CMD BATCH '--args ginaUn_output="/mnt/external/Cranberries/MatthewPhillips/GiNATestImages/GiNA_undistorted/GiNA_output.csv" ginaDeux_output="GiNADeuxOutput/GiNADeux_output.orig.binary.csv" output_file="comparison.orig.binary.paired.pvalues.csv"' analyze_paired.R
