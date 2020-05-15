@@ -46,16 +46,16 @@ if __name__ == '__main__':
     if( parsed.algorithm == 'binary' ):
         threshold = parsed.threshold
         channel = parsed.channel
-        segmenter = BinaryThresholdSegment( channel=channel, threshold=threshold, resize=resizeFactor, minArea=mina, maxArea=maxa, grid=True )
+        segmenter = BinaryThresholdSegment( channel=channel, threshold=threshold, resize=resizeFactor, minArea=mina, maxArea=maxa, grid=True, grid_num_columns=7 )
     elif( parsed.algorithm == 'neural' ):
         if( parsed.foreground and parsed.background ): #Train
-            segmenter = NNSegment( resize=resizeFactor, minArea=mina, maxArea=maxa, grid=True )
+            segmenter = NNSegment( resize=resizeFactor, minArea=mina, maxArea=maxa, grid=True, grid_num_columns=7 )
             foreground = cv2.imread(parsed.foreground)
             background = cv2.imread(parsed.background)
             segmenter.train(foreground, background)
             segmenter.export(parsed.model) #Write the trained model and its weights back to files
         else: #Load previously trained model
-            segmenter = NNSegment( modelPath=parsed.model, resize=resizeFactor, minArea=mina, maxArea=maxa, grid=True )
+            segmenter = NNSegment( modelPath=parsed.model, resize=resizeFactor, minArea=mina, maxArea=maxa, grid=True, grid_num_columns=7 )
 
     assert (parsed.input or parsed.includes),"ERROR: Must specify either --input or --includes flag on command-line."
     if( parsed.input ):
@@ -90,7 +90,8 @@ if __name__ == '__main__':
         if not parsed.inputs_are_binary:
             data['picture'] = pd.Series([image_path.name]*len(data), index=data.index)
         else: #Remove the 'binary' extension -- NOTE: This assumes the segmented binary file versions are labeled with '.binary.JPG' in suffix, or equivalent.
-            image_path_suffix   = image_path.suffix
+            #image_path_suffix   = image_path.suffix
+            image_path_suffix   = ".JPG" # Just assume JPG for now, as the original images aren't in PNG format unlike the binary files.
             image_path_stem     = PurePath(image_path.stem).stem
             data['picture']     = pd.Series([image_path_stem+image_path_suffix]*len(data), index=data.index)
         data['numbering']       = pd.Series([-1]*len(data.index), index=data.index)

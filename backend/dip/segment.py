@@ -98,7 +98,7 @@ dtypes  = pd.Series(['float64',
 
 
 class Segment():
-    def __init__(self, resize=0.5, minArea=1500, maxArea=3000, numRefs=12, refSize=2.54, grid=False):
+    def __init__(self, resize=0.5, minArea=1500, maxArea=3000, numRefs=12, refSize=2.54, grid=False, grid_num_columns=0):
         super().__init__()
         self.resize  = resize
         self.minArea = minArea
@@ -106,6 +106,7 @@ class Segment():
         self.numRefs = numRefs
         self.refSize = refSize
         self.grid    = grid
+        self.num_columns = grid_num_columns
         return
 
     def preprocess(self, image):
@@ -169,6 +170,9 @@ class Segment():
         regions = regions[(regions.area >= self.minArea) & (regions.area <= self.maxArea)]
         regions.sort_values(by='centroid_col', inplace=True) #Sort blobs left to right
         regions.index = range(0, len(regions.index))
+        #Also set the index of the regions_raw list, so as to sort it equivalently with regions later.
+        for i,r in enumerate(regions_raw):
+            r.index = i
 
         #If user specifies that berries are in a grid pattern, then use radon transform to determine 'peaks' in the y-direction
         if self.grid:
@@ -178,11 +182,14 @@ class Segment():
             newbinimage = np.zeros((maxdim, maxdim), dtype='uint8') #Necessary to convert to square, as radon transform apparently shrinks to smallest dimension
             newbinimage[:binxdim,:binydim] = binimage * 255 #Copy the binimage into the square version of it
             regions['grid_bins']    = pd.Series(np.zeros(len(regions.index)), index=regions.index) #Create a grid_bins column for storing clustered grid columns
-            grid_peaks              = np.squeeze(radon(newbinimage, theta=[0.0], circle=True, preserve_range=True)) #Project only at 0 degrees (down columns)
-            grid_peaks_blur         = gaussian_filter(grid_peaks, sigma=3.0) #Gaussian blur the radon transform output in order to avoid spurious peaks
-            grid_peak_extrema       = argrelextrema(grid_peaks_blur, np.greater)[0]
             regions_centroid_col    = np.asarray(regions.centroid_col).reshape(-1,1) #Needed to get AgglomerativeClustering working
-            grid_col_clustering     = AgglomerativeClustering(n_clusters=len(grid_peak_extrema)).fit(regions_centroid_col) #Sort blob centroids based on column offset
+            if( self.num_columns == 0 ): #Try to infer the number of columns of berries in grid layout
+                grid_peaks              = np.squeeze(radon(newbinimage, theta=[0.0], circle=True, preserve_range=True)) #Project only at 0 degrees (down columns)
+                grid_peaks_blur         = gaussian_filter(grid_peaks, sigma=12.0) #Gaussian blur the radon transform output in order to avoid spurious peaks from off-center berries in column
+                grid_peak_extrema       = argrelextrema(grid_peaks_blur, np.greater)[0]
+                grid_col_clustering     = AgglomerativeClustering(n_clusters=len(grid_peak_extrema)).fit(regions_centroid_col) #Sort blob centroids based on column offset
+            else:
+                grid_col_clustering     = AgglomerativeClustering(n_clusters=self.num_columns).fit(regions_centroid_col) #Sort blob centroids based on column offset
             #Reorder the labels_ from 0 to len(np.unique(labels_), as we want to keep sort
             new_label = -1 
             last_label = -1
@@ -194,6 +201,9 @@ class Segment():
                 new_labels[i] = new_label
             regions.grid_bins = new_labels
             regions.sort_values(by=['grid_bins','centroid_row'], inplace=True)
+            regions_index = tuple(regions.index)
+            regions_raw.sort(key = lambda r: regions_index.index(r.index))
+            #Now, make sure we resort the regions_raw to match the 
         regions.index = range(0,len(regions.index)) #Renumber the index from 0 to len(regions.index), since the dataframe will hold the original ordering b/f sorting
 
         datadf = pd.DataFrame(np.zeros((regions.shape[0],len(columns)),dtype='float64'), columns=columns) #Pre-allocate
@@ -215,8 +225,8 @@ class Segment():
         E                           = sqrt(1 - ((A**2)/(C**2)))
         datadf.skinSurface        = (2*pi*(A**2))*(1 + (C/(A*E))+asin(E)) #Again, this is a formula assuming a prolate spheroid, which better defines most cranberry shapes
         #Calculate Color Stats for Each Blob
-        for i in range(0,len(regions.index)):
-            blobPixels                  = image[regions_raw[i].coords[:,0],regions_raw[i].coords[:,1]]
+        for i,r in regions.iterrows():
+            blobPixels                  = image[np.where(label_image == r.label)]
             B_med,G_med,R_med           = np.median(blobPixels, axis=0)
             datadf.loc[i, 'R_med']      = R_med
             datadf.loc[i, 'G_med']      = G_med
@@ -226,7 +236,7 @@ class Segment():
             datadf.loc[i, 'G_var']      = G_var
             datadf.loc[i, 'B_var']      = B_var
             blobPixelsGray              = 1.0-rgb2gray(blobPixels)/255.0
-            datadf.loc[i, 'bwColor']    = np.sum(blobPixelsGray)/(regions_raw[i].area)
+            datadf.loc[i, 'bwColor']    = np.sum(blobPixelsGray)/(r.area)
             datadf.loc[i, 'vbwColor']   = np.var(blobPixelsGray)*100.0
     
         num_blobs = len(regions.index)
